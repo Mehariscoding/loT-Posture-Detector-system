@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Posture Detector Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #f0f0f0; min-height: 100vh; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+  .connect-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 28px; }
+  #connectBtn {
+    padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 500; background: #3b82f6; color: white;
+    transition: background 0.2s;
+  }
+  #connectBtn:hover { background: #2563eb; }
+  #connectBtn.connected { background: #16a34a; }
+  #connectBtn.disconnected { background: #dc2626; }
+  #status { font-size: 13px; color: #888; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .card {
+    background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 12px;
+    padding: 16px; text-align: center;
+  }
+  .card-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 600; }
+  .card-unit { font-size: 12px; color: #666; margin-top: 2px; }
+
+  .status-good { color: #22c55e; }
+  .status-bad { color: #ef4444; }
+  .status-adjusting { color: #f59e0b; }
+  .status-none { color: #666; }
+
+  .section-title { font-size: 13px; font-weight: 500; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .log-box {
+    background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 12px;
+    padding: 16px; height: 200px; overflow-y: auto; font-family: monospace;
+    font-size: 12px; color: #aaa; margin-bottom: 24px;
+  }
+  .log-good { color: #22c55e; }
+  .log-bad { color: #ef4444; }
+  .log-adj { color: #f59e0b; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 20px; border-radius: 8px; border: 0.5px solid #333;
+    background: #1a1a1a; color: #f0f0f0; cursor: pointer; font-size: 13px;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #2a2a2a; }
+  .btn.danger { border-color: #7f1d1d; color: #ef4444; }
+  .btn.danger:hover { background: #1f0000; }
+  .btn.primary { background: #1d4ed8; border-color: #1d4ed8; color: white; }
+  .btn.primary:hover { background: #1e40af; }
+
+  .bar-wrap { background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .bar-label { font-size: 12px; color: #888; width: 70px; flex-shrink: 0; }
+  .bar-track { flex: 1; background: #2a2a2a; border-radius: 4px; height: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s, background 0.3s; }
+  .bar-val { font-size: 12px; color: #aaa; width: 40px; text-align: right; flex-shrink: 0; }
+
+  .chart-wrap { background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+  canvas { width: 100% !important; }
+
+  .stat-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stat-chip {
+    background: #1a1a1a; border: 0.5px solid #2a2a2a; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; color: #aaa;
+  }
+  .stat-chip span { color: #f0f0f0; font-weight: 500; }
+
+  .not-supported { background: #1f0000; border: 1px solid #7f1d1d; border-radius: 8px; padding: 16px; color: #ef4444; font-size: 14px; display: none; }
+</style>
+</head>
+<body>
+
+<h1>Posture Detector</h1>
+<p class="subtitle">Connect via Bluetooth to monitor posture in real time</p>
+
+<div class="not-supported" id="notSupported">
+  Web Bluetooth is not supported in this browser. Open this file in Chrome on a desktop or Android device.
+</div>
+
+<div class="connect-bar">
+  <button id="connectBtn" onclick="toggleConnect()">Connect to HC-10</button>
+  <span id="status">Not connected</span>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card-label">Status</div>
+    <div class="card-value status-none" id="statusVal">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Score</div>
+    <div class="card-value" id="scoreVal">—</div>
+    <div class="card-unit">%</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Readings</div>
+    <div class="card-value" id="readingsVal">0</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Bad events</div>
+    <div class="card-value" id="badVal">0</div>
+  </div>
+</div>
+
+<div class="section-title">Live sensor values</div>
+<div class="bar-wrap">
+  <div class="bar-row">
+    <div class="bar-label">Upper pitch</div>
+    <div class="bar-track"><div class="bar-fill" id="bar-up" style="width:0%;background:#3b82f6"></div></div>
+    <div class="bar-val" id="val-up">0°</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">Upper roll</div>
+    <div class="bar-track"><div class="bar-fill" id="bar-ur" style="width:0%;background:#8b5cf6"></div></div>
+    <div class="bar-val" id="val-ur">0°</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">Lower pitch</div>
+    <div class="bar-track"><div class="bar-fill" id="bar-lp" style="width:0%;background:#06b6d4"></div></div>
+    <div class="bar-val" id="val-lp">0°</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">Lower roll</div>
+    <div class="bar-track"><div class="bar-fill" id="bar-lr" style="width:0%;background:#a855f7"></div></div>
+    <div class="bar-val" id="val-lr">0°</div>
+  </div>
+</div>
+
+<div class="section-title">Posture score over time</div>
+<div class="chart-wrap">
+  <canvas id="scoreChart" height="120"></canvas>
+</div>
+
+<div class="section-title">Session stats</div>
+<div class="stat-row">
+  <div class="stat-chip">Session time: <span id="sessionTime">0:00</span></div>
+  <div class="stat-chip">Avg score: <span id="avgScore">—</span></div>
+  <div class="stat-chip">Worst score: <span id="worstScore">—</span></div>
+</div>
+
+<div class="section-title">Raw log</div>
+<div class="log-box" id="logBox"></div>
+
+<div class="actions">
+  <button class="btn primary" onclick="downloadCSV()">Download CSV</button>
+  <button class="btn" onclick="clearLog()">Clear log</button>
+  <button class="btn danger" onclick="clearAll()">Reset session</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+let device = null, characteristic = null;
+let sessionData = [];
+let sessionStart = null;
+let totalReadings = 0, badEvents = 0;
+let scoreHistory = [];
+let sessionTimer = null;
+
+if (!navigator.bluetooth) {
+  document.getElementById('notSupported').style.display = 'block';
+}
+
+const HC10_SERVICE = '0000ffe0-0000-1000-8000-00805f9b34fb';
+const HC10_CHAR   = '0000ffe1-0000-1000-8000-00805f9b34fb';
+
+async function toggleConnect() {
+  if (device && device.gatt.connected) {
+    device.gatt.disconnect();
+    onDisconnected();
+    return;
+  }
+  try {
+    document.getElementById('status').textContent = 'Scanning...';
+    device = await navigator.bluetooth.requestDevice({
+      filters: [
+        { name: 'MLT-BT05' },
+        { name: 'HC-10' },
+        { namePrefix: 'BT' }
+      ],
+      optionalServices: [HC10_SERVICE]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(HC10_SERVICE);
+    characteristic = await service.getCharacteristic(HC10_CHAR);
+    await characteristic.startNotifications();
+    characteristic.addEventListener('characteristicvaluechanged', handleData);
+    onConnected();
+  } catch(e) {
+    document.getElementById('status').textContent = 'Failed: ' + e.message;
+    console.error(e);
+  }
+}
+
+function onConnected() {
+  const btn = document.getElementById('connectBtn');
+  btn.textContent = 'Disconnect';
+  btn.className = 'connected';
+  document.getElementById('status').textContent = 'Connected to ' + device.name;
+  if (!sessionStart) {
+    sessionStart = Date.now();
+    sessionTimer = setInterval(updateSessionTime, 1000);
+  }
+}
+
+function onDisconnected() {
+  const btn = document.getElementById('connectBtn');
+  btn.textContent = 'Connect to HC-10';
+  btn.className = 'disconnected';
+  document.getElementById('status').textContent = 'Disconnected';
+  characteristic = null;
+  clearInterval(sessionTimer);
+}
+
+let buffer = '';
+function handleData(event) {
+  const val = event.target.value;
+  const text = new TextDecoder().decode(val);
+  buffer += text;
+  const lines = buffer.split('\n');
+  buffer = lines.pop();
+  lines.forEach(line => parseLine(line.trim()));
+}
+
+function parseLine(line) {
+  if (!line) return;
+  const m = line.match(/U:([\d.\-]+)\/([\d.\-]+)\s+L:([\d.\-]+)\/([\d.\-]+)\s+(\w+)\s+([\d]+)%/);
+  if (!m) return;
+
+  const up = parseFloat(m[1]);
+  const ur = parseFloat(m[2]);
+  const lp = parseFloat(m[3]);
+  const lr = parseFloat(m[4]);
+  const status = m[5];
+  const score = parseInt(m[6]);
+  const ts = new Date().toISOString();
+
+  totalReadings++;
+  if (status === 'BAD') badEvents++;
+
+  scoreHistory.push(score);
+  if (scoreHistory.length > 60) scoreHistory.shift();
+
+  sessionData.push({ ts, up, ur, lp, lr, status, score });
+
+  updateCards(status, score);
+  updateBars(up, ur, lp, lr, status);
+  updateChart();
+  updateStats(score);
+  addLog(ts, up, ur, lp, lr, status, score);
+}
+
+function updateCards(status, score) {
+  const sv = document.getElementById('statusVal');
+  sv.textContent = status;
+  sv.className = 'card-value status-' + status.toLowerCase();
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('readingsVal').textContent = totalReadings;
+  document.getElementById('badVal').textContent = badEvents;
+}
+
+function updateBars(up, ur, lp, lr, status) {
+  const max = 45;
+  const color = status === 'BAD' ? '#ef4444' : status === 'ADJUSTING' ? '#f59e0b' : '#22c55e';
+  setBar('up', up, max, color);
+  setBar('ur', ur, max, '#8b5cf6');
+  setBar('lp', lp, max, '#06b6d4');
+  setBar('lr', lr, max, '#a855f7');
+}
+
+function setBar(id, val, max, color) {
+  const pct = Math.min(100, (Math.abs(val) / max) * 100);
+  document.getElementById('bar-' + id).style.width = pct + '%';
+  document.getElementById('bar-' + id).style.background = color;
+  document.getElementById('val-' + id).textContent = val.toFixed(1) + '°';
+}
+
+let chart = null;
+function updateChart() {
+  const canvas = document.getElementById('scoreChart');
+  if (!chart) {
+    chart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: scoreHistory.map((_, i) => i),
+        datasets: [{
+          data: scoreHistory,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { min: 0, max: 100, ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#222' } },
+          x: { display: false }
+        }
+      }
+    });
+  } else {
+    chart.data.labels = scoreHistory.map((_, i) => i);
+    chart.data.datasets[0].data = scoreHistory;
+    chart.update('none');
+  }
+}
+
+function updateStats(score) {
+  const scores = sessionData.map(d => d.score);
+  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const worst = scores.length ? Math.min(...scores) : null;
+  document.getElementById('avgScore').textContent = avg !== null ? avg + '%' : '—';
+  document.getElementById('worstScore').textContent = worst !== null ? worst + '%' : '—';
+}
+
+function updateSessionTime() {
+  if (!sessionStart) return;
+  const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  document.getElementById('sessionTime').textContent = m + ':' + String(s).padStart(2, '0');
+}
+
+function addLog(ts, up, ur, lp, lr, status, score) {
+  const box = document.getElementById('logBox');
+  const cls = status === 'BAD' ? 'log-bad' : status === 'ADJUSTING' ? 'log-adj' : 'log-good';
+  const time = ts.substring(11, 19);
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = `[${time}] ${status} | Score:${score}% | U:${up.toFixed(1)}/${ur.toFixed(1)} L:${lp.toFixed(1)}/${lr.toFixed(1)}`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function downloadCSV() {
+  if (!sessionData.length) { alert('No data to download yet.'); return; }
+  const header = 'Timestamp,UpperPitch,UpperRoll,LowerPitch,LowerRoll,Status,Score\n';
+  const rows = sessionData.map(d =>
+    `${d.ts},${d.up},${d.ur},${d.lp},${d.lr},${d.status},${d.score}`
+  ).join('\n');
+  const blob = new Blob([header + rows], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'posture_session_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearLog() {
+  document.getElementById('logBox').innerHTML = '';
+}
+
+function clearAll() {
+  sessionData = [];
+  totalReadings = 0;
+  badEvents = 0;
+  scoreHistory = [];
+  sessionStart = null;
+  clearInterval(sessionTimer);
+  document.getElementById('readingsVal').textContent = '0';
+  document.getElementById('badVal').textContent = '0';
+  document.getElementById('scoreVal').textContent = '—';
+  document.getElementById('statusVal').textContent = '—';
+  document.getElementById('avgScore').textContent = '—';
+  document.getElementById('worstScore').textContent = '—';
+  document.getElementById('sessionTime').textContent = '0:00';
+  document.getElementById('logBox').innerHTML = '';
+  if (chart) { chart.data.labels = []; chart.data.datasets[0].data = []; chart.update(); }
+}
+</script>
+</body>
+</html>
