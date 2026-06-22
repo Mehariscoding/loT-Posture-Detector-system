@@ -1,23 +1,48 @@
-# loT-Posture-Detector-system
-IoT wearable that tracks spinal alignment using two gyroscope sensors, logs data to an SD card, and streams live posture data over Bluetooth to a web dashboard
+markdown# IoT Posture Detector System
 
-# IoT Posture Detector System
+A closed-loop wearable posture monitoring and correction system designed for
+long-duration occupational use. The system uses dual IMU sensors to track
+spinal alignment in real time, delivers haptic feedback to correct slouching
+behaviour, logs session data to an SD card, and streams live metrics to a
+web-based dashboard over Bluetooth.
 
-A wearable Arduino-based device that monitors upper and lower back alignment in real time using dual MPU-6050 IMU sensors. When slouching is detected, the device alerts the user via vibration and LED. All session data is logged to an SD card and streamed live over Bluetooth to a web dashboard.
-
-Built for the Peel Region Science Fair 2025.
-
----
-
-## How it works
-
-Two MPU-6050 gyroscope/accelerometer sensors are mounted on the upper and lower back. On startup the device auto-calibrates to the user's ideal posture over 5 seconds. From that point it continuously compares live sensor readings against the baseline — if either sensor detects more than 15° of deviation for over 2.5 seconds, it triggers a vibration motor and LED alert.
-
-Every reading is logged to a CSV file on the SD card and simultaneously streamed over Bluetooth to a live web dashboard built in HTML/JS.
+Built and tested as part of an ongoing research effort targeting occupational
+driver ergonomics.
 
 ---
 
-## Components
+## Repository Structure
+V1/
+
+├── Software/        # Arduino firmware and web dashboard
+
+├── Hardware/        # STL files and wiring schematics
+
+├── Data/            # Session logs and science fair dataset
+
+└── Presentables/    # Judge summary and presentation materials
+
+V2/                  # In development — ESP32, PCB, rechargeable power system
+
+---
+
+## System Overview
+
+Two MPU-6050 IMU sensors are mounted at the upper and lower back. On startup
+the device runs a stability-based auto-calibration routine that collects 200
+samples, identifies the most stable 50-sample window, removes outliers, and
+computes a median baseline — ensuring the reference posture is not corrupted
+by movement during initialization.
+
+During monitoring, live sensor readings are continuously compared against the
+calibrated baseline. If either sensor detects more than 15° of deviation for
+over 2.5 seconds, the vibration motor triggers a haptic correction alert.
+Every reading is logged to CSV on an SD card and simultaneously streamed over
+Bluetooth to a live web dashboard.
+
+---
+
+## V1 Hardware
 
 | Part | Quantity |
 |------|----------|
@@ -55,9 +80,7 @@ Every reading is logged to a CSV file on the SD card and simultaneously streamed
 
 ---
 
-## Libraries required
-
-Install these in Arduino IDE before uploading:
+## Libraries
 
 - `MPU6050` by Electronic Cats
 - `SD` (built in)
@@ -66,54 +89,49 @@ Install these in Arduino IDE before uploading:
 
 ---
 
-## How to upload
+## Setup
 
-1. Open `posture_detector.ino` in Arduino IDE
-2. Install the required libraries above
+1. Open `V1/Software/Posture_Detector.ino` in Arduino IDE
+2. Install required libraries
 3. Select **Arduino Uno** under Tools → Board
-4. Select the correct port under Tools → Port
+4. Select correct port under Tools → Port
 5. Click Upload
 
 ---
 
-## How to use
+## Usage
 
 1. Power on the device
-2. Stand or sit in your ideal posture
-3. Wait 5 seconds for auto-calibration — LED and motor will buzz once to confirm
-4. The device now monitors your posture continuously
-5. If you slouch for more than 2.5 seconds the LED lights up and motor vibrates
+2. Sit or stand in your natural upright posture
+3. Hold still — calibration runs automatically and confirms with a buzz
+4. Device monitors continuously and vibrates to correct slouching
 
 ---
 
-## Web dashboard
+## Dashboard
 
-Open `posture_dashboard.html` in **Chrome** on a Mac or PC.
+Open `V1/Software/posture_dashboard.html` in Chrome.
 
 1. Click **Connect to HC-10**
-2. Select your device from the Bluetooth scan list
-3. Live posture data streams in real time — pitch, roll, status, score
-4. Click **Download CSV** at any time to save your session data
+2. Select device from Bluetooth scan list
+3. Live pitch, roll, status, and score stream in real time
+4. Click **Download CSV** to export session data
 
 ---
 
-## Data format
+## Data Format
 
-The SD card logs to `posture.csv` with the following columns:
-```
+SD card logs to `posture.csv`:
 Time(ms), PitchU, RollU, PitchL, RollL, Status, Score(%)
-```
 
-The BLE stream format is:
-```
+BLE stream format:
 U:0.3/0.0 L:0.2/0.1 GOOD 100%
-```
 
 ---
 
-## 3D printed case
+## 3D Printed Enclosure
 
-The `case/` folder contains STL files for the main electronics enclosure and the lower sensor housing. Printed in PLA on a Bambu Lab P1S.
+STL files in `V1/Hardware/`. Printed in PLA on a Bambu Lab P1S.
 
 - Main case: 150mm x 100mm x 40mm
 - Sensor case: 40mm x 45mm x 20mm
@@ -121,7 +139,29 @@ The `case/` folder contains STL files for the main electronics enclosure and the
 
 ---
 
+## Known Limitations (V1)
+
+- Bluetooth connection drops after approximately 20–30 minutes due to power
+  instability on the HC-10 module
+- 9V battery provides inconsistent voltage under motor load
+- Single-snapshot calibration vulnerable to initialization error if user
+  moves during startup
+
+These are addressed in V2 through an ESP32 migration, LiPo rechargeable
+power system, and the robust stability-based calibration algorithm.
+
+---
+
+## Roadmap
+
+| Version | Status | Key upgrades |
+|---------|--------|--------------|
+| V1 | Complete | Arduino, HC-10, breadboard prototype |
+| V2 | In development | ESP32, custom PCB, LiPo power, ML dashboard |
+
+---
+
 ## Author
 
-Mehar — Grade 10, Peel Region, Ontario  
+Mehar — Grade 10, Peel Region, Ontario
 [GitHub](https://github.com/Mehariscoding)
