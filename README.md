@@ -1,4 +1,4 @@
-markdown# IoT Posture Detector System
+# IoT Posture Detector System
 
 A closed-loop wearable posture monitoring and correction system designed for
 long-duration occupational use. The system uses dual IMU sensors to track
