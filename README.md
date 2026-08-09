@@ -1,3 +1,4 @@
+```markdown
 # IoT Posture Detector System
 
 A closed-loop wearable posture monitoring and correction system designed for
@@ -12,17 +13,20 @@ driver ergonomics.
 ---
 
 ## Repository Structure
+
+```
+README.md
+CHANGELOG.md
 V1/
-
 ├── Software/        # Arduino firmware and web dashboard
-
 ├── Hardware/        # STL files and wiring schematics
-
 ├── Data/            # Session logs and science fair dataset
-
 └── Presentables/    # Judge summary and presentation materials
-
-V2/                  # In development — ESP32, PCB, rechargeable power system
+V2/
+├── posture_detector_v2.ino        # ESP32 firmware
+├── posture_dashboard_v2_ml.html   # ML dashboard
+└── posture_session_v2_ml.csv      # 122-minute stability test data
+```
 
 ---
 
@@ -31,11 +35,11 @@ V2/                  # In development — ESP32, PCB, rechargeable power system
 Two MPU-6050 IMU sensors are mounted at the upper and lower back. On startup
 the device runs a stability-based auto-calibration routine that collects 200
 samples, identifies the most stable 50-sample window, removes outliers, and
-computes a median baseline — ensuring the reference posture is not corrupted
+computes a median baseline, ensuring the reference posture is not corrupted
 by movement during initialization.
 
 During monitoring, live sensor readings are continuously compared against the
-calibrated baseline. If either sensor detects more than 15° of deviation for
+calibrated baseline. If either sensor detects more than 15 degrees of deviation for
 over 2.5 seconds, the vibration motor triggers a haptic correction alert.
 Every reading is logged to CSV on an SD card and simultaneously streamed over
 Bluetooth to a live web dashboard.
@@ -53,13 +57,53 @@ Bluetooth to a live web dashboard.
 | Coin vibration motor | 1 |
 | LED | 1 |
 | NPN transistor (2N2222) | 1 |
-| 1000µF 50V capacitor | 1 |
+| 1000uF 50V capacitor | 1 |
 | 9V battery + holder | 1 |
 | Resistors, jumper wires, breadboard | — |
 
 ---
 
-## Wiring
+## V2 Hardware
+
+| Part | Quantity |
+|------|----------|
+| ESP32 Huzzah 32 | 1 |
+| MPU-6050 IMU sensor | 2 |
+| Micro SD card module | 1 |
+| LiPo battery 3000mAh 3.7V | 1 |
+| TP4056 charging module | 1 |
+| MT3608 boost converter | 1 |
+| Coin vibration motor | 1 |
+| LED | 1 |
+| NPN transistor (2N2222) | 1 |
+| Slide switch | 1 |
+| JST connectors | 3 |
+| Resistors, jumper wires, breadboard | — |
+
+---
+
+## V2 Wiring
+
+| Component | ESP32 Pin |
+|-----------|-----------|
+| MPU-6050 upper (0x68) SDA | GPIO 23 |
+| MPU-6050 upper (0x68) SCL | GPIO 22 |
+| MPU-6050 lower (0x69) SDA | GPIO 23 (shared) |
+| MPU-6050 lower (0x69) SCL | GPIO 22 (shared) |
+| MPU-6050 lower AD0 | 3.3V |
+| SD card MOSI | GPIO 18 |
+| SD card MISO | GPIO 19 |
+| SD card SCK | GPIO 5 |
+| SD card CS | GPIO 21 |
+| LED | GPIO 12 |
+| Motor (via transistor) | GPIO 14 |
+| LiPo positive | TP4056 BAT+ |
+| TP4056 OUT+ | MT3608 IN+ |
+| MT3608 OUT+ | ESP32 VIN |
+
+---
+
+## V1 Wiring
 
 | Component | Arduino Pin |
 |-----------|------------|
@@ -75,26 +119,39 @@ Bluetooth to a live web dashboard.
 | Motor (via transistor) | Pin 6 |
 | Battery positive | VIN |
 | Battery negative | GND |
-| Capacitor positive | VIN |
-| Capacitor negative | GND |
 
 ---
 
 ## Libraries
 
-- `MPU6050` by Electronic Cats
-- `SD` (built in)
-- `SoftwareSerial` (built in)
-- `Wire` (built in)
+**V1:**
+- MPU6050 by Electronic Cats
+- SD (built in)
+- SoftwareSerial (built in)
+- Wire (built in)
+
+**V2:**
+- MPU6050 by Electronic Cats
+- SD (built in)
+- Wire (built in)
+- BLEDevice (built in ESP32 core)
 
 ---
 
 ## Setup
 
-1. Open `V1/Software/Posture_Detector.ino` in Arduino IDE
+**V1:**
+1. Open V1/Software/Posture_Detector.ino in Arduino IDE
 2. Install required libraries
-3. Select **Arduino Uno** under Tools → Board
-4. Select correct port under Tools → Port
+3. Select Arduino Uno under Tools, Board
+4. Select correct port under Tools, Port
+5. Click Upload
+
+**V2:**
+1. Open V2/posture_detector_v2.ino in Arduino IDE
+2. Install ESP32 board package by Espressif Systems
+3. Select Adafruit ESP32 Feather under Tools, Board
+4. Select correct port under Tools, Port
 5. Click Upload
 
 ---
@@ -103,52 +160,67 @@ Bluetooth to a live web dashboard.
 
 1. Power on the device
 2. Sit or stand in your natural upright posture
-3. Hold still — calibration runs automatically and confirms with a buzz
+3. Hold still, calibration runs automatically and confirms with a buzz
 4. Device monitors continuously and vibrates to correct slouching
 
 ---
 
 ## Dashboard
 
-Open `V1/Software/posture_dashboard.html` in Chrome.
-
-1. Click **Connect to HC-10**
+**V1:** Open V1/Software/posture_dashboard.html in Chrome.
+1. Click Connect to HC-10
 2. Select device from Bluetooth scan list
 3. Live pitch, roll, status, and score stream in real time
-4. Click **Download CSV** to export session data
+
+**V2:** Open V2/posture_dashboard_v2_ml.html in Chrome.
+1. Click Connect
+2. Select PostureDetector_V2 from Bluetooth scan list
+3. Live ML inference streams in real time
+4. Multi-class classifier, predictive deterioration model, and anomaly detection run in browser
 
 ---
 
 ## Data Format
 
-SD card logs to `posture.csv`:
+SD card logs to posture.csv:
+```
 Time(ms), PitchU, RollU, PitchL, RollL, Status, Score(%)
+```
 
 BLE stream format:
+```
 U:0.3/0.0 L:0.2/0.1 GOOD 100%
+```
 
 ---
 
 ## 3D Printed Enclosure
 
-STL files in `V1/Hardware/`. Printed in PLA on a Bambu Lab P1S.
-
+**V1:** STL files in V1/Hardware/. Printed in PLA on a Bambu Lab P1S.
 - Main case: 150mm x 100mm x 40mm
 - Sensor case: 40mm x 45mm x 20mm
 - Fastened with M3 thumb screws
+
+**V2:** Redesigned dual elastic band system with TPU cable sleeve. PCB enclosure in development.
 
 ---
 
 ## Known Limitations (V1)
 
-- Bluetooth connection drops after approximately 20–30 minutes due to power
-  instability on the HC-10 module
+- Bluetooth connection drops after approximately 20-30 minutes due to power instability on the HC-10 module
 - 9V battery provides inconsistent voltage under motor load
-- Single-snapshot calibration vulnerable to initialization error if user
-  moves during startup
+- Single-snapshot calibration vulnerable to initialization error if user moves during startup
 
-These are addressed in V2 through an ESP32 migration, LiPo rechargeable
-power system, and the robust stability-based calibration algorithm.
+All of these are resolved in V2.
+
+---
+
+## Stability Test (V2)
+
+- 13,874 readings over 122 continuous minutes
+- Zero Bluetooth dropouts
+- Max gap between readings: 660ms (expected: 500ms)
+- Confirms ESP32 native BLE fully resolves V1 dropout issue
 
 ---
 
@@ -157,7 +229,7 @@ power system, and the robust stability-based calibration algorithm.
 | Version | Status | Key upgrades |
 |---------|--------|--------------|
 | V1 | Complete | Arduino, HC-10, breadboard prototype |
-| V2 | In development | ESP32, custom PCB, LiPo power, ML dashboard |
+| V2 | Prototype Complete, PCB In Development | ESP32, native BLE, robust calibration, ML dashboard, LiPo power |
 
 ---
 
@@ -165,3 +237,4 @@ power system, and the robust stability-based calibration algorithm.
 
 Mehar — Grade 10, Peel Region, Ontario
 [GitHub](https://github.com/Mehariscoding)
+```
