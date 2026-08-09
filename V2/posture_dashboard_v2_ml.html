@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Posture Detector V2 — ML Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      color: #ffffff;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #444;
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #1a1d27;
+      border-radius: 12px;
+      padding: 18px;
+      border: 1px solid #2a2d3a;
+    }
+
+    .card h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #555;
+      margin-bottom: 14px;
+    }
+
+    .span2 { grid-column: span 2; }
+    .span3 { grid-column: span 3; }
+
+    /* BLE Status */
+    .ble-bar {
+      grid-column: span 3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      padding: 12px 18px;
+    }
+
+    .ble-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    .ble-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #333;
+      transition: background 0.3s;
+    }
+
+    .ble-dot.connected { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+
+    .ble-buttons { display: flex; gap: 10px; }
+
+    button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    button:hover { opacity: 0.85; }
+    #connectBtn { background: #2ecc71; color: #0f1117; }
+    #disconnectBtn { background: #e74c3c; color: white; display: none; }
+    #downloadBtn { background: #3498db; color: white; }
+    #clearBtn { background: #2a2d3a; color: #aaa; }
+
+    /* Status + Score */
+    .status-score {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-badge {
+      flex: 1;
+      font-size: 1.8rem;
+      font-weight: 800;
+      padding: 14px;
+      border-radius: 10px;
+      text-align: center;
+      transition: all 0.3s;
+      letter-spacing: 1px;
+    }
+
+    .OPTIMAL   { background: #0a2e1a; color: #00ff88; border: 1px solid #00ff88; }
+    .GOOD      { background: #0d2b1a; color: #2ecc71; border: 1px solid #2ecc71; }
+    .SLIGHT_SLOUCH { background: #1e2a0d; color: #a8e063; border: 1px solid #a8e063; }
+    .SLOUCHING { background: #2b230d; color: #f39c12; border: 1px solid #f39c12; }
+    .SEVERE    { background: #2b0d0d; color: #e74c3c; border: 1px solid #e74c3c; }
+    .WAITING   { background: #1a1d27; color: #444; border: 1px solid #333; }
+    .WARNING   { background: #2b1a0d; color: #e67e22; border: 1px solid #e67e22; }
+
+    .score-ring {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: conic-gradient(#2ecc71 0%, #1a1d27 0%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .score-ring-inner {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: #1a1d27;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .score-num { font-size: 1.6rem; font-weight: 700; color: #fff; }
+    .score-lbl { font-size: 0.6rem; color: #555; text-transform: uppercase; }
+
+    /* Sensor values */
+    .sensor-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .sensor-box {
+      background: #0f1117;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .sensor-box .lbl { font-size: 0.65rem; color: #555; text-transform: uppercase; margin-bottom: 3px; }
+    .sensor-box .val { font-size: 1.3rem; font-weight: 600; color: #fff; }
+    .sensor-box .val span { font-size: 0.7rem; color: #555; }
+
+    /* ML panels */
+    .ml-label {
+      display: inline-block;
+      font-size: 0.65rem;
+      background: #2a2d3a;
+      color: #888;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .ml-label.active { background: #1a3a5c; color: #3498db; }
+
+    .class-bars { display: flex; flex-direction: column; gap: 6px; }
+
+    .class-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+    }
+
+    .class-bar-label { width: 90px; color: #888; flex-shrink: 0; }
+    .class-bar-track { flex: 1; height: 8px; background: #0f1117; border-radius: 4px; overflow: hidden; }
+    .class-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+    .class-bar-pct { width: 36px; text-align: right; color: #666; font-size: 0.68rem; }
+
+    /* Prediction */
+    .prediction-display {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pred-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+    }
+
+    .pred-label { color: #666; }
+    .pred-value { font-weight: 600; color: #fff; }
+
+    .risk-bar-track { height: 10px; background: #0f1117; border-radius: 5px; overflow: hidden; margin-top: 6px; }
+    .risk-bar-fill { height: 100%; border-radius: 5px; transition: width 0.5s, background 0.5s; }
+
+    /* Anomaly */
+    .anomaly-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .anomaly-item {
+      background: #2b1a0d;
+      border: 1px solid #e67e22;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.72rem;
+      color: #e67e22;
+    }
+
+    .no-anomaly { font-size: 0.78rem; color: #444; }
+
+    /* Fatigue */
+    .fatigue-meter {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fatigue-score-display {
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .fatigue-track { height: 12px; background: #0f1117; border-radius: 6px; overflow: hidden; }
+    .fatigue-fill { height: 100%; border-radius: 6px; transition: width 0.5s, background 0.5s; }
+
+    .fatigue-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+    .fatigue-stat { background: #0f1117; border-radius: 6px; padding: 8px; text-align: center; }
+    .fatigue-stat .fval { font-size: 1.1rem; font-weight: 600; }
+    .fatigue-stat .flbl { font-size: 0.62rem; color: #555; text-transform: uppercase; }
+
+    /* Charts */
+    .chart-wrap { position: relative; height: 140px; }
+    canvas { width: 100%; height: 100%; display: block; }
+
+    /* Session report */
+    .report-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .report-stat { background: #0f1117; border-radius: 8px; padding: 12px; text-align: center; }
+    .report-stat .rval { font-size: 1.6rem; font-weight: 700; color: #fff; }
+    .report-stat .rlbl { font-size: 0.62rem; color: #555; text-transform: uppercase; margin-top: 2px; }
+
+    .report-insights { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .insight { background: #0f1117; border-radius: 6px; padding: 8px 12px; font-size: 0.76rem; color: #aaa; border-left: 3px solid #3498db; }
+
+    /* Confidence */
+    .confidence-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .conf-bar-track { flex: 1; height: 6px; background: #0f1117; border-radius: 3px; overflow: hidden; }
+    .conf-bar-fill { height: 100%; background: #2ecc71; border-radius: 3px; transition: width 0.5s; width: 0%; }
+    .conf-val { font-size: 0.72rem; color: #aaa; width: 36px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0f1117; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<h1>Posture Detector V2</h1>
+<p class="subtitle">ESP32 BLE · Real-Time ML Inference · Trained on 15,457 samples</p>
+
+<div class="grid">
+
+  <!-- BLE Bar -->
+  <div class="ble-bar">
+    <div class="ble-indicator">
+      <div class="ble-dot" id="bleDot"></div>
+      <span id="bleStatus">Not connected — click Connect</span>
+    </div>
+    <div class="ble-buttons">
+      <button id="connectBtn" onclick="connectBLE()">Connect</button>
+      <button id="disconnectBtn" onclick="disconnectBLE()">Disconnect</button>
+      <button id="downloadBtn" onclick="downloadCSV()">Download CSV</button>
+      <button id="clearBtn" onclick="clearSession()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Status + Score -->
+  <div class="card">
+    <h2>Posture Status</h2>
+    <div class="status-score">
+      <div class="status-badge WAITING" id="statusBadge">WAITING</div>
+      <div class="score-ring" id="scoreRing">
+        <div class="score-ring-inner">
+          <div class="score-num" id="scoreNum">—</div>
+          <div class="score-lbl">Score</div>
+        </div>
+      </div>
+    </div>
+    <div class="confidence-row" style="margin-top:12px;">
+      <div style="font-size:0.65rem;color:#555;width:80px;text-transform:uppercase;">Cal. Confidence</div>
+      <div class="conf-bar-track"><div class="conf-bar-fill" id="confFill"></div></div>
+      <div class="conf-val" id="confVal">—</div>
+    </div>
+  </div>
+
+  <!-- Sensor Readings -->
+  <div class="card">
+    <h2>Sensor Readings</h2>
+    <div style="margin-bottom:8px;font-size:0.68rem;color:#555;">UPPER BACK</div>
+    <div class="sensor-row" style="margin-bottom:10px;">
+      <div class="sensor-box">
+        <div class="lbl">Pitch Δ</div>
+        <div class="val" id="pitchU">—<span>°</span></div>
+      </div>
+      <div class="sensor-box">
+        <div class="lbl">Roll Δ</div>
+        <div class="val" id="rollU">—<span>°</span></div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;font-size:0.68rem;color:#555;">LOWER BACK</div>
+    <div class="sensor-row">
+      <div class="sensor-box">
+        <div class="lbl">Pitch Δ</div>
+        <div class="val" id="pitchL">—<span>°</span></div>
+      </div>
+      <div class="sensor-box">
+        <div class="lbl">Roll Δ</div>
+        <div class="val" id="rollL">—<span>°</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML Classifier -->
+  <div class="card">
+    <h2>ML Classifier <span class="ml-label active" id="mlBadge">Nearest-Centroid · 84.6% acc</span></h2>
+    <div class="class-bars" id="classBars">
+      <div class="class-bar-row">
+        <div class="class-bar-label">Optimal</div>
+        <div class="class-bar-track"><div class="class-bar-fill" id="bar0" style="background:#00ff88;width:0%"></div></div>
+        <div class="class-bar-pct" id="pct0">—</div>
+      </div>
+      <div class="class-bar-row">
+        <div class="class-bar-label">Good</div>
+        <div class="class-bar-track"><div class="class-bar-fill" id="bar1" style="background:#2ecc71;width:0%"></div></div>
+        <div class="class-bar-pct" id="pct1">—</div>
+      </div>
+      <div class="class-bar-row">
+        <div class="class-bar-label">Slight Slouch</div>
+        <div class="class-bar-track"><div class="class-bar-fill" id="bar2" style="background:#a8e063;width:0%"></div></div>
+        <div class="class-bar-pct" id="pct2">—</div>
+      </div>
+      <div class="class-bar-row">
+        <div class="class-bar-label">Slouching</div>
+        <div class="class-bar-track"><div class="class-bar-fill" id="bar3" style="background:#f39c12;width:0%"></div></div>
+        <div class="class-bar-pct" id="pct3">—</div>
+      </div>
+      <div class="class-bar-row">
+        <div class="class-bar-label">Severe</div>
+        <div class="class-bar-track"><div class="class-bar-fill" id="bar4" style="background:#e74c3c;width:0%"></div></div>
+        <div class="class-bar-pct" id="pct4">—</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:0.7rem;color:#555;">
+      Prediction: <span id="mlPrediction" style="color:#fff;font-weight:600;">—</span>
+    </div>
+  </div>
+
+  <!-- Predictive Deterioration -->
+  <div class="card span2">
+    <h2>Predictive Deterioration Model <span class="ml-label active">30-second lookahead</span></h2>
+    <div class="prediction-display">
+      <div class="pred-row">
+        <span class="pred-label">Current trend</span>
+        <span class="pred-value" id="trendVal">—</span>
+      </div>
+      <div class="pred-row">
+        <span class="pred-label">Predicted state in 30s</span>
+        <span class="pred-value" id="predState">—</span>
+      </div>
+      <div class="pred-row">
+        <span class="pred-label">Deterioration risk</span>
+        <span class="pred-value" id="riskPct">—</span>
+      </div>
+      <div class="risk-bar-track">
+        <div class="risk-bar-fill" id="riskBar" style="width:0%;background:#2ecc71;"></div>
+      </div>
+      <div style="font-size:0.72rem;color:#555;margin-top:2px;" id="predWarning">Collecting data...</div>
+    </div>
+  </div>
+
+  <!-- Anomaly Detection -->
+  <div class="card">
+    <h2>Anomaly Detection <span class="ml-label active">IQR · asymmetric loading</span></h2>
+    <div id="anomalyList" class="anomaly-list">
+      <div class="no-anomaly">No anomalies detected</div>
+    </div>
+    <div style="margin-top:10px;font-size:0.68rem;color:#555;">
+      Total flagged: <span id="anomalyCount" style="color:#e67e22;font-weight:600;">0</span>
+    </div>
+  </div>
+
+  <!-- Score Chart -->
+  <div class="card span2">
+    <h2>Posture Score Over Time</h2>
+    <div class="chart-wrap">
+      <canvas id="scoreChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Fatigue Index -->
+  <div class="card">
+    <h2>Fatigue Index <span class="ml-label">Analytics</span></h2>
+    <div class="fatigue-meter">
+      <div class="fatigue-score-display" id="fatigueScore" style="color:#2ecc71;">0</div>
+      <div class="fatigue-track">
+        <div class="fatigue-fill" id="fatigueFill" style="width:0%;background:#2ecc71;"></div>
+      </div>
+      <div class="fatigue-stats">
+        <div class="fatigue-stat">
+          <div class="fval" id="corrPerHr">—</div>
+          <div class="flbl">Corrections/hr</div>
+        </div>
+        <div class="fatigue-stat">
+          <div class="fval" id="avgRecovery">—</div>
+          <div class="flbl">Avg recovery (s)</div>
+        </div>
+        <div class="fatigue-stat">
+          <div class="fval" id="alertCount">0</div>
+          <div class="flbl">Total alerts</div>
+        </div>
+        <div class="fatigue-stat">
+          <div class="fval" id="sessionTime">0:00</div>
+          <div class="flbl">Session time</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deviation Chart -->
+  <div class="card span2">
+    <h2>Sensor Deviation Over Time</h2>
+    <div class="chart-wrap">
+      <canvas id="deviationChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Session Intelligence Report -->
+  <div class="card span3">
+    <h2>Session Intelligence Report <span class="ml-label">Analytics</span></h2>
+    <div class="report-grid">
+      <div class="report-stat">
+        <div class="rval" id="repTotal">—</div>
+        <div class="rlbl">Total readings</div>
+      </div>
+      <div class="report-stat">
+        <div class="rval" id="repGoodPct">—</div>
+        <div class="rlbl">Time in good posture</div>
+      </div>
+      <div class="report-stat">
+        <div class="rval" id="repWorstPeriod">—</div>
+        <div class="rlbl">Worst period (min)</div>
+      </div>
+      <div class="report-stat">
+        <div class="rval" id="repTrend">—</div>
+        <div class="rlbl">Session trend</div>
+      </div>
+    </div>
+    <div class="report-insights" id="reportInsights">
+      <div class="insight">Connect device to generate session insights.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── ML MODEL (trained on 15,457 real samples) ───────────────────────────────
+const MODEL = {
+  centroids: [[0.0107867384755257,0.0027670918539515047,0.010456812883257567,0.003882924489525712,0.018000618812939025,0.00655371060566489,0.011873803139226164,0.009915121903202284,0.025430600120793758,0.005945385191549971,0.015817305959602106,0.006050553920715654,0.03282619214020662,0.007473076122961959,0.01985494123173141,0.006572084797058977,0.442832856757781,0.468892526371752,0.016338201072444276,0.00403775690956297,0.013702713931546925],[0.023883147807042718,0.0059076248815694826,0.048151002968326556,0.006380789369593358,0.03689420811687559,0.01481255691687207,0.047323937756275455,0.017646564575490777,0.047623715761154484,0.011612878304966467,0.025419218215748406,0.00983972693172653,0.06692902590563636,0.015172285012406644,0.061269043320234445,0.011413801978546979,0.44254533949543956,0.46954837961817214,0.04831158669578999,0.011829216558540405,0.05051410043090579],[0.13890058442366618,0.06891270651593177,0.04665157198101885,0.02056629308128959,0.22816873009447713,0.1617905051656564,0.05251155939067127,0.06097988721428734,0.1306376096652948,0.017070932308249603,0.0337444542406565,0.014945742933699512,0.29051749446208913,0.08205498931513591,0.07052743295039526,0.028559452284476674,0.4452182772456056,0.4681178444407,0.21644417732375165,0.14475906998748378,0.14247809404269177],[0.21344167868301864,0.0361653281704301,0.024287266088442592,0.010956460766768941,0.24265030986994926,0.07935843962764694,0.02521817566381464,0.03058681365583162,0.05923014107978464,0.007793017686529982,0.017270144016795743,0.008519099592894428,0.2497594706666747,0.04020383976187065,0.03326153844428457,0.015100755708727837,0.4466375054615663,0.46942314692480847,0.257546764558032,0.06930610299959093,0.21336575655009754],[0.36793903631536856,0.032479079782864434,0.2410613480108307,0.04799218085805719,0.41183924752374795,0.07068530139177438,0.2425359975813812,0.13666157285929623,0.08329397541896495,0.015379405909757827,0.03726314582207916,0.0220738676358273,0.4125945619077049,0.04191616947918893,0.2609579749110241,0.06016180867563175,0.44822643932876577,0.4709611305347144,0.5734741267422956,0.0809376758748503,0.523224708134363]],
+  featMin: [0,0,0,0,0.26,0.07,0.15,0.07,0.19,0.046,0.098,0.046,0.7,0.1,0.5,0.2,-57.16,-49.3,0,0,0.1],
+  featMax: [89.7,89.8,89.8,76.7,78.01,39.7,87.98,26.21,35.57,30.82,31.67,25.41,89.7,89.8,89.8,76.7,70.88,55.58,66.83,36.15,89.8],
+  classNames: ['OPTIMAL','GOOD','SLIGHT_SLOUCH','SLOUCHING','SEVERE'],
+  anomalyThreshold: 72.93,
+  windowSize: 10
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let bleDevice = null, bleChar = null;
+let sessionData = [];
+let rawBuffer = [];        // rolling window for ML
+let scoreHistory = [];
+let devHistory = [];
+let anomalies = [];
+let alertCount = 0;
+let sessionStart = null;
+let sessionTimer = null;
+let lastBadTime = null;
+let recoverySamples = [];
+let correctionTimes = [];
+const MAX_HIST = 80;
+
+// ─── BLE ─────────────────────────────────────────────────────────────────────
+const SERVICE_UUID        = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+async function connectBLE() {
+  try {
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'PostureDetector_V2' }],
+      optionalServices: [SERVICE_UUID]
+    });
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    bleChar = await service.getCharacteristic(CHARACTERISTIC_UUID);
+    await bleChar.startNotifications();
+    bleChar.addEventListener('characteristicvaluechanged', handleData);
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+    setConnected(true);
+    sessionStart = Date.now();
+    sessionTimer = setInterval(tick, 1000);
+  } catch(e) {
+    document.getElementById('bleStatus').textContent = 'Connection failed: ' + e.message;
+  }
+}
+
+function disconnectBLE() {
+  if (bleDevice && bleDevice.gatt.connected) bleDevice.gatt.disconnect();
+}
+
+function onDisconnected() {
+  setConnected(false);
+  clearInterval(sessionTimer);
+}
+
+function setConnected(v) {
+  document.getElementById('bleDot').className = 'ble-dot' + (v ? ' connected' : '');
+  document.getElementById('bleStatus').textContent = v ? 'Connected to PostureDetector_V2' : 'Disconnected';
+  document.getElementById('connectBtn').style.display = v ? 'none' : 'block';
+  document.getElementById('disconnectBtn').style.display = v ? 'block' : 'none';
+}
+
+// ─── DATA HANDLER ─────────────────────────────────────────────────────────────
+function handleData(event) {
+  const raw = new TextDecoder().decode(event.target.value).trim();
+
+  // Calibration confidence
+  if (raw.startsWith('Calibrated! Confidence:')) {
+    const c = parseFloat(raw.split(':')[1]);
+    document.getElementById('confFill').style.width = (c * 100).toFixed(1) + '%';
+    document.getElementById('confVal').textContent = (c * 100).toFixed(0) + '%';
+    return;
+  }
+
+  // Parse posture data: U:pu/ru L:pl/rl STATUS SCORE%
+  const m = raw.match(/U:([\d.]+)\/([\d.]+) L:([\d.]+)\/([\d.]+) (\w+) (\d+)%/);
+  if (!m) return;
+
+  const [, pu, ru, pl, rl, status, score] = m;
+  const sample = {
+    t: Date.now() - sessionStart,
+    pu: parseFloat(pu), ru: parseFloat(ru),
+    pl: parseFloat(pl), rl: parseFloat(rl),
+    status, score: parseInt(score)
+  };
+
+  sessionData.push(sample);
+  rawBuffer.push(sample);
+  if (rawBuffer.length > 120) rawBuffer.shift();
+
+  // Update sensor display
+  document.getElementById('pitchU').innerHTML = pu + '<span>°</span>';
+  document.getElementById('rollU').innerHTML  = ru + '<span>°</span>';
+  document.getElementById('pitchL').innerHTML = pl + '<span>°</span>';
+  document.getElementById('rollL').innerHTML  = rl + '<span>°</span>';
+
+  // Score ring
+  updateScoreRing(parseInt(score));
+
+  // Alert tracking
+  if (status === 'BAD') {
+    alertCount++;
+    document.getElementById('alertCount').textContent = alertCount;
+    lastBadTime = Date.now();
+  } else if (lastBadTime && status === 'GOOD') {
+    const recoveryMs = Date.now() - lastBadTime;
+    recoverySamples.push(recoveryMs / 1000);
+    lastBadTime = null;
+  }
+
+  // ── ML INFERENCE ──────────────────────────────────────────────────────────
+  if (rawBuffer.length >= MODEL.windowSize) {
+    const win = rawBuffer.slice(-MODEL.windowSize);
+    const features = extractFeatures(win, sample);
+    const { classIdx, distances } = nearestCentroid(features);
+
+    updateClassifier(classIdx, distances);
+    updateStatusBadge(MODEL.classNames[classIdx]);
+    runPrediction();
+    runAnomalyDetection(sample, features);
+  }
+
+  // ── CHARTS ────────────────────────────────────────────────────────────────
+  scoreHistory.push(parseInt(score));
+  devHistory.push(Math.max(sample.pu, sample.ru, sample.pl, sample.rl));
+  if (scoreHistory.length > MAX_HIST) scoreHistory.shift();
+  if (devHistory.length > MAX_HIST) devHistory.shift();
+
+  drawChart('scoreChart', scoreHistory, '#2ecc71', 0, 100, true);
+  drawChart('deviationChart', devHistory, '#e74c3c', 0, 60, false);
+
+  // ── FATIGUE ───────────────────────────────────────────────────────────────
+  updateFatigue();
+
+  // ── REPORT ────────────────────────────────────────────────────────────────
+  updateReport();
+}
+
+// ─── FEATURE EXTRACTION ───────────────────────────────────────────────────────
+function extractFeatures(window, current) {
+  const pu = window.map(r => r.pu);
+  const ru = window.map(r => r.ru);
+  const pl = window.map(r => r.pl);
+  const rl = window.map(r => r.rl);
+
+  const mean = arr => arr.reduce((a,b) => a+b, 0) / arr.length;
+  const std  = arr => { const m = mean(arr); return Math.sqrt(arr.reduce((a,b) => a+(b-m)**2, 0)/arr.length); };
+  const max  = arr => Math.max(...arr);
+  const half = arr => [arr.slice(0, arr.length>>1), arr.slice(arr.length>>1)];
+
+  const [puH1, puH2] = half(pu);
+  const [plH1, plH2] = half(pl);
+
+  return [
+    current.pu, current.ru, current.pl, current.rl,
+    mean(pu), mean(ru), mean(pl), mean(rl),
+    std(pu),  std(ru),  std(pl),  std(rl),
+    max(pu),  max(ru),  max(pl),  max(rl),
+    mean(puH2) - mean(puH1),
+    mean(plH2) - mean(plH1),
+    Math.abs(mean(pu) - mean(pl)),
+    Math.abs(mean(ru) - mean(rl)),
+    Math.max(current.pu, current.ru, current.pl, current.rl)
+  ];
+}
+
+// ─── NORMALIZE ────────────────────────────────────────────────────────────────
+function normalize(features) {
+  return features.map((v, i) => {
+    const range = MODEL.featMax[i] - MODEL.featMin[i];
+    return range === 0 ? 0 : (v - MODEL.featMin[i]) / range;
+  });
+}
+
+// ─── NEAREST CENTROID CLASSIFIER ─────────────────────────────────────────────
+function nearestCentroid(features) {
+  const norm = normalize(features);
+  const distances = MODEL.centroids.map(centroid => {
+    return Math.sqrt(centroid.reduce((sum, c, i) => sum + (norm[i] - c) ** 2, 0));
+  });
+  const classIdx = distances.indexOf(Math.min(...distances));
+  // Convert distances to confidence scores (inverse softmax style)
+  const invD = distances.map(d => 1 / (d + 1e-6));
+  const total = invD.reduce((a,b) => a+b, 0);
+  const confidences = invD.map(v => v / total);
+  return { classIdx, distances, confidences };
+}
+
+// ─── UPDATE CLASSIFIER UI ─────────────────────────────────────────────────────
+function updateClassifier(classIdx, distances) {
+  const { confidences } = nearestCentroid(extractFeatures(
+    rawBuffer.slice(-MODEL.windowSize),
+    rawBuffer[rawBuffer.length - 1]
+  ));
+  const colors = ['#00ff88','#2ecc71','#a8e063','#f39c12','#e74c3c'];
+  confidences.forEach((c, i) => {
+    document.getElementById('bar' + i).style.width = (c * 100).toFixed(1) + '%';
+    document.getElementById('pct' + i).textContent = (c * 100).toFixed(0) + '%';
+  });
+  document.getElementById('mlPrediction').textContent =
+    MODEL.classNames[classIdx].replace('_', ' ');
+}
+
+// ─── UPDATE STATUS BADGE ─────────────────────────────────────────────────────
+function updateStatusBadge(className) {
+  const badge = document.getElementById('statusBadge');
+  badge.textContent = className.replace('_', ' ');
+  badge.className = 'status-badge ' + className;
+}
+
+// ─── SCORE RING ───────────────────────────────────────────────────────────────
+function updateScoreRing(score) {
+  document.getElementById('scoreNum').textContent = score + '%';
+  const color = score > 80 ? '#2ecc71' : score > 60 ? '#f39c12' : '#e74c3c';
+  document.getElementById('scoreRing').style.background =
+    `conic-gradient(${color} ${score * 3.6}deg, #0f1117 0deg)`;
+}
+
+// ─── PREDICTIVE DETERIORATION ─────────────────────────────────────────────────
+function runPrediction() {
+  const PRED_WINDOW = 60; // 30 seconds at 500ms
+  if (rawBuffer.length < PRED_WINDOW) {
+    document.getElementById('predWarning').textContent =
+      `Collecting data... (${rawBuffer.length}/${PRED_WINDOW} samples)`;
+    return;
+  }
+
+  const recent = rawBuffer.slice(-PRED_WINDOW);
+  const maxDevs = recent.map(r => Math.max(r.pu, r.ru, r.pl, r.rl));
+
+  // Linear regression on max deviations
+  const n = maxDevs.length;
+  const xs = maxDevs.map((_, i) => i);
+  const xMean = xs.reduce((a,b) => a+b, 0) / n;
+  const yMean = maxDevs.reduce((a,b) => a+b, 0) / n;
+  const slope = xs.reduce((s, x, i) => s + (x - xMean) * (maxDevs[i] - yMean), 0) /
+                xs.reduce((s, x) => s + (x - xMean) ** 2, 0);
+
+  // Project 60 samples ahead (30 seconds)
+  const currentDev = maxDevs[maxDevs.length - 1];
+  const predictedDev = currentDev + slope * 60;
+
+  const trendStr = slope > 0.05 ? '↑ Worsening' : slope < -0.05 ? '↓ Improving' : '→ Stable';
+  document.getElementById('trendVal').textContent = trendStr;
+  document.getElementById('trendVal').style.color =
+    slope > 0.05 ? '#e74c3c' : slope < -0.05 ? '#2ecc71' : '#f39c12';
+
+  const predClass = predictedDev < 3 ? 'OPTIMAL' : predictedDev < 8 ? 'GOOD' :
+                    predictedDev < 15 ? 'SLIGHT SLOUCH' : predictedDev < 25 ? 'SLOUCHING' : 'SEVERE';
+  document.getElementById('predState').textContent = predClass + ` (${predictedDev.toFixed(1)}°)`;
+
+  const risk = Math.min(100, Math.max(0, (predictedDev / 45) * 100));
+  document.getElementById('riskPct').textContent = risk.toFixed(0) + '%';
+  const riskBar = document.getElementById('riskBar');
+  riskBar.style.width = risk + '%';
+  riskBar.style.background = risk > 70 ? '#e74c3c' : risk > 40 ? '#f39c12' : '#2ecc71';
+
+  if (risk > 70) {
+    document.getElementById('predWarning').textContent =
+      '⚠ High deterioration risk — posture correction recommended';
+    document.getElementById('predWarning').style.color = '#e74c3c';
+  } else if (risk > 40) {
+    document.getElementById('predWarning').textContent =
+      '⚡ Moderate risk — monitor posture closely';
+    document.getElementById('predWarning').style.color = '#f39c12';
+  } else {
+    document.getElementById('predWarning').textContent =
+      '✓ Posture trajectory stable';
+    document.getElementById('predWarning').style.color = '#2ecc71';
+  }
+}
+
+// ─── ANOMALY DETECTION (IQR on asymmetry) ────────────────────────────────────
+function runAnomalyDetection(sample, features) {
+  const asymmetry = features[18]; // upper vs lower deviation difference
+  if (asymmetry > MODEL.anomalyThreshold) {
+    const ts = formatTime(sample.t);
+    const msg = `[${ts}] Asymmetric loading detected — upper/lower deviation gap: ${asymmetry.toFixed(1)}°`;
+    anomalies.push(msg);
+
+    const list = document.getElementById('anomalyList');
+    if (list.querySelector('.no-anomaly')) list.innerHTML = '';
+
+    const item = document.createElement('div');
+    item.className = 'anomaly-item';
+    item.textContent = msg;
+    list.insertBefore(item, list.firstChild);
+
+    // Keep max 5 shown
+    while (list.children.length > 5) list.removeChild(list.lastChild);
+    document.getElementById('anomalyCount').textContent = anomalies.length;
+  }
+}
+
+// ─── FATIGUE INDEX ────────────────────────────────────────────────────────────
+function updateFatigue() {
+  if (!sessionStart || sessionData.length < 10) return;
+
+  const elapsedHrs = (Date.now() - sessionStart) / 3600000;
+  const corrPerHr = elapsedHrs > 0 ? (alertCount / elapsedHrs).toFixed(0) : 0;
+  const avgRec = recoverySamples.length > 0
+    ? (recoverySamples.reduce((a,b) => a+b, 0) / recoverySamples.length).toFixed(1)
+    : '—';
+
+  document.getElementById('corrPerHr').textContent = corrPerHr;
+  document.getElementById('avgRecovery').textContent = avgRec === '—' ? '—' : avgRec + 's';
+
+  // Fatigue score: weighted combination
+  const corrFactor = Math.min(100, (corrPerHr / 30) * 100);
+  const recFactor = recoverySamples.length > 0
+    ? Math.min(100, (parseFloat(avgRec) / 10) * 100) : 0;
+  const scoreFactor = sessionData.length > 0
+    ? Math.max(0, 100 - sessionData[sessionData.length - 1].score) : 0;
+  const fatigue = Math.round((corrFactor * 0.4) + (recFactor * 0.3) + (scoreFactor * 0.3));
+
+  document.getElementById('fatigueScore').textContent = fatigue;
+  const fatigueColor = fatigue > 70 ? '#e74c3c' : fatigue > 40 ? '#f39c12' : '#2ecc71';
+  document.getElementById('fatigueScore').style.color = fatigueColor;
+  document.getElementById('fatigueFill').style.width = fatigue + '%';
+  document.getElementById('fatigueFill').style.background = fatigueColor;
+}
+
+// ─── SESSION REPORT ───────────────────────────────────────────────────────────
+function updateReport() {
+  if (sessionData.length < 5) return;
+
+  const goodCount = sessionData.filter(r => r.status === 'GOOD').length;
+  const goodPct = ((goodCount / sessionData.length) * 100).toFixed(0);
+
+  // Find worst 2-minute window
+  const WIN = 240; // 2 min * 2 readings/sec
+  let worstScore = 100, worstIdx = 0;
+  for (let i = 0; i < sessionData.length - WIN; i++) {
+    const avg = sessionData.slice(i, i + WIN).reduce((s, r) => s + r.score, 0) / WIN;
+    if (avg < worstScore) { worstScore = avg; worstIdx = i; }
+  }
+  const worstMin = sessionData.length > WIN
+    ? (sessionData[worstIdx].t / 60000).toFixed(1)
+    : '—';
+
+  // Overall trend
+  const firstHalf = sessionData.slice(0, sessionData.length >> 1);
+  const secondHalf = sessionData.slice(sessionData.length >> 1);
+  const firstAvg = firstHalf.reduce((s,r) => s + r.score, 0) / firstHalf.length;
+  const secondAvg = secondHalf.reduce((s,r) => s + r.score, 0) / secondHalf.length;
+  const trendStr = secondAvg > firstAvg + 2 ? '↑ Improving'
+                 : secondAvg < firstAvg - 2 ? '↓ Declining' : '→ Stable';
+
+  document.getElementById('repTotal').textContent = sessionData.length;
+  document.getElementById('repGoodPct').textContent = goodPct + '%';
+  document.getElementById('repWorstPeriod').textContent = worstMin;
+  document.getElementById('repTrend').textContent = trendStr;
+
+  // Insights
+  const insights = [];
+  if (goodPct > 80) insights.push('Excellent posture maintenance throughout session.');
+  else if (goodPct < 50) insights.push('Posture was poor for more than half the session — consider shorter driving intervals.');
+  if (alertCount > 10) insights.push(`High alert frequency (${alertCount} alerts) suggests posture fatigue.`);
+  if (anomalies.length > 0) insights.push(`${anomalies.length} asymmetric loading event(s) detected — may indicate seat adjustment issues.`);
+  if (recoverySamples.length > 0) {
+    const avgRec = recoverySamples.reduce((a,b) => a+b,0) / recoverySamples.length;
+    if (avgRec < 3) insights.push('Fast response to haptic feedback — good compliance.');
+    else insights.push(`Average recovery time ${avgRec.toFixed(1)}s — consider increasing vibration intensity.`);
+  }
+  if (insights.length === 0) insights.push('Session in progress. Insights update as data accumulates.');
+
+  document.getElementById('reportInsights').innerHTML =
+    insights.map(i => `<div class="insight">${i}</div>`).join('');
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────────
+function drawChart(id, data, color, yMin, yMax, showThreshold) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio || canvas.offsetHeight;
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  const W = canvas.offsetWidth, H = canvas.offsetHeight - 16;
+  ctx.clearRect(0, 0, W, H + 16);
+
+  // Grid
+  ctx.strokeStyle = '#2a2d3a'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = 8 + (H / 4) * i;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Threshold line
+  if (showThreshold) {
+    const ty = 8 + H - ((80 - yMin) / (yMax - yMin)) * H;
+    ctx.strokeStyle = '#2a5a3a'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  if (data.length < 2) return;
+
+  // Fill
+  ctx.fillStyle = color + '18';
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = (i / (MAX_HIST - 1)) * W;
+    const y = 8 + H - ((Math.min(Math.max(v, yMin), yMax) - yMin) / (yMax - yMin)) * H;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(W, H + 8); ctx.lineTo(0, H + 8); ctx.closePath(); ctx.fill();
+
+  // Line
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.shadowColor = color; ctx.shadowBlur = 6;
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = (i / (MAX_HIST - 1)) * W;
+    const y = 8 + H - ((Math.min(Math.max(v, yMin), yMax) - yMin) / (yMax - yMin)) * H;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke(); ctx.shadowBlur = 0;
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function tick() {
+  if (!sessionStart) return;
+  const el = Math.floor((Date.now() - sessionStart) / 1000);
+  document.getElementById('sessionTime').textContent =
+    Math.floor(el / 60) + ':' + String(el % 60).padStart(2, '0');
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function downloadCSV() {
+  if (!sessionData.length) { alert('No data yet.'); return; }
+  let csv = 'Time(ms),PitchU,RollU,PitchL,RollL,Status,Score(%)\n';
+  sessionData.forEach(d => {
+    csv += `${d.t},${d.pu},${d.ru},${d.pl},${d.rl},${d.status},${d.score}\n`;
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'posture_session_v2_ml.csv';
+  a.click();
+}
+
+function clearSession() {
+  sessionData = []; rawBuffer = []; scoreHistory = []; devHistory = [];
+  anomalies = []; alertCount = 0; recoverySamples = []; lastBadTime = null;
+  document.getElementById('alertCount').textContent = 0;
+  document.getElementById('anomalyCount').textContent = 0;
+  document.getElementById('anomalyList').innerHTML = '<div class="no-anomaly">No anomalies detected</div>';
+  document.getElementById('statusBadge').className = 'status-badge WAITING';
+  document.getElementById('statusBadge').textContent = 'WAITING';
+  document.getElementById('scoreNum').textContent = '—';
+  document.getElementById('mlPrediction').textContent = '—';
+  document.getElementById('fatigueScore').textContent = '0';
+  document.getElementById('fatigueFill').style.width = '0%';
+  document.getElementById('reportInsights').innerHTML =
+    '<div class="insight">Connect device to generate session insights.</div>';
+  ['scoreChart','deviationChart'].forEach(id => {
+    const c = document.getElementById(id);
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  });
+}
+</script>
+</body>
+</html>
