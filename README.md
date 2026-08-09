@@ -1,14 +1,8 @@
-```markdown
 # IoT Posture Detector System
 
-A closed-loop wearable posture monitoring and correction system designed for
-long-duration occupational use. The system uses dual IMU sensors to track
-spinal alignment in real time, delivers haptic feedback to correct slouching
-behaviour, logs session data to an SD card, and streams live metrics to a
-web-based dashboard over Bluetooth.
+A closed-loop wearable posture monitoring and correction system designed for long-duration occupational use. The system uses dual IMU sensors to track spinal alignment in real time, delivers haptic feedback to correct slouching behaviour, logs session data to an SD card, and streams live metrics to a web-based dashboard over Bluetooth.
 
-Built and tested as part of an ongoing research effort targeting occupational
-driver ergonomics.
+Built and tested as part of an ongoing research effort targeting occupational driver ergonomics.
 
 ---
 
@@ -32,17 +26,9 @@ V2/
 
 ## System Overview
 
-Two MPU-6050 IMU sensors are mounted at the upper and lower back. On startup
-the device runs a stability-based auto-calibration routine that collects 200
-samples, identifies the most stable 50-sample window, removes outliers, and
-computes a median baseline, ensuring the reference posture is not corrupted
-by movement during initialization.
+Two MPU-6050 IMU sensors are mounted at the upper and lower back. On startup the device runs a stability-based auto-calibration routine that collects 200 samples, identifies the most stable 50-sample window, removes outliers, and computes a median baseline, ensuring the reference posture is not corrupted by movement during initialization.
 
-During monitoring, live sensor readings are continuously compared against the
-calibrated baseline. If either sensor detects more than 15 degrees of deviation for
-over 2.5 seconds, the vibration motor triggers a haptic correction alert.
-Every reading is logged to CSV on an SD card and simultaneously streamed over
-Bluetooth to a live web dashboard.
+During monitoring, live sensor readings are continuously compared against the calibrated baseline. If either sensor detects more than 15 degrees of deviation for over 2.5 seconds, the vibration motor triggers a haptic correction alert. Every reading is logged to CSV on an SD card and simultaneously streamed over Bluetooth to a live web dashboard.
 
 ---
 
@@ -59,7 +45,7 @@ Bluetooth to a live web dashboard.
 | NPN transistor (2N2222) | 1 |
 | 1000uF 50V capacitor | 1 |
 | 9V battery + holder | 1 |
-| Resistors, jumper wires, breadboard | — |
+| Resistors, jumper wires, breadboard | -- |
 
 ---
 
@@ -78,7 +64,26 @@ Bluetooth to a live web dashboard.
 | NPN transistor (2N2222) | 1 |
 | Slide switch | 1 |
 | JST connectors | 3 |
-| Resistors, jumper wires, breadboard | — |
+| Resistors, jumper wires, breadboard | -- |
+
+---
+
+## V1 Wiring
+
+| Component | Arduino Pin |
+|-----------|------------|
+| MPU-6050 upper (0x68) SDA | A4 |
+| MPU-6050 upper (0x68) SCL | A5 |
+| MPU-6050 lower (0x69) SDA | A4 (shared) |
+| MPU-6050 lower (0x69) SCL | A5 (shared) |
+| MPU-6050 lower AD0 | 3.3V |
+| HC-10 TXD | Pin 8 |
+| HC-10 RXD | Pin 9 |
+| SD card CS | Pin 5 |
+| LED | Pin 7 |
+| Motor (via transistor) | Pin 6 |
+| Battery positive | VIN |
+| Battery negative | GND |
 
 ---
 
@@ -100,25 +105,6 @@ Bluetooth to a live web dashboard.
 | LiPo positive | TP4056 BAT+ |
 | TP4056 OUT+ | MT3608 IN+ |
 | MT3608 OUT+ | ESP32 VIN |
-
----
-
-## V1 Wiring
-
-| Component | Arduino Pin |
-|-----------|------------|
-| MPU-6050 upper (0x68) SDA | A4 |
-| MPU-6050 upper (0x68) SCL | A5 |
-| MPU-6050 lower (0x69) SDA | A4 (shared) |
-| MPU-6050 lower (0x69) SCL | A5 (shared) |
-| MPU-6050 lower AD0 | 3.3V |
-| HC-10 TXD | Pin 8 |
-| HC-10 RXD | Pin 9 |
-| SD card CS | Pin 5 |
-| LED | Pin 7 |
-| Motor (via transistor) | Pin 6 |
-| Battery positive | VIN |
-| Battery negative | GND |
 
 ---
 
@@ -183,11 +169,13 @@ Bluetooth to a live web dashboard.
 ## Data Format
 
 SD card logs to posture.csv:
+
 ```
 Time(ms), PitchU, RollU, PitchL, RollL, Status, Score(%)
 ```
 
 BLE stream format:
+
 ```
 U:0.3/0.0 L:0.2/0.1 GOOD 100%
 ```
@@ -235,6 +223,5 @@ All of these are resolved in V2.
 
 ## Author
 
-Mehar — Grade 10, Peel Region, Ontario
+Mehar -- Grade 10, Peel Region, Ontario
 [GitHub](https://github.com/Mehariscoding)
-```
